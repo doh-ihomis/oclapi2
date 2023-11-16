@@ -11,17 +11,13 @@ services:
       test: "pg_isready -U postgres"
     volumes:
       - postgres-data:/usr/share/postgres/data
-    networks:
-      - web
   redis:
     image: redis:6.0.6-alpine
     restart: "always"
     healthcheck:
       test: "redis-cli ping"
-    networks:
-      - web
   api:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     restart: "always"
     ports:
       - 8000:8000
@@ -51,30 +47,10 @@ services:
       - AWS_REGION_NAME
       - ERRBIT_URL
       - ERRBIT_KEY
-      #- OIDC_SERVER_URL=${OIDC_SERVER_URL-http://localhost:8080}
-      #- OIDC_SERVER_INTERNAL_URL=${OIDC_SERVER_INTERNAL_URL-http://host.docker.internal:8080} # only for dev env
-      #- OIDC_REALM=${OIDC_REALM-ocl}
-      #- OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
-      #- OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
     healthcheck:
       test: "curl --silent --fail http://localhost:8000/version/ || exit 1"
-    labels:
-      - traefik.enable=true
-      - traefik.http.middlewares.redirect-web-secure.redirectscheme.scheme=https
-      - traefik.http.middlewares.https-redirect.headers.customrequestheaders.X-Forwarded-Proto=https
-      - traefik.http.routers.ocl-api-web.middlewares=redirect-web-secure
-      - traefik.http.routers.ocl-api-web.rule=Host(`terminology-api.doh.gov.ph`)
-      - traefik.http.routers.ocl-api-web.entrypoints=web
-      - traefik.http.routers.ocl-api-web-secure.rule=Host(`terminology-api.doh.gov.ph`)
-      - traefik.http.routers.ocl-api-web-secure.entrypoints=web-secure
-      - traefik.http.routers.ocl-api-web-secure.tls=true
-      - traefik.http.routers.ocl-api-web-secure.tls.certresolver=default
-      - traefik.http.routers.ocl-api-web-secure.service=ocl-api-service
-      - traefik.http.services.ocl-api-service.loadbalancer.server.port=8000
-    networks:
-      - web
   celery:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=default ./start_celery_worker.sh -P prefork -Q default -c 2"]
     restart: "always"
     healthcheck:
@@ -85,10 +61,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   celery_beat:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "./start_celery_beat.sh"]
     restart: "always"
     healthcheck:
@@ -105,10 +79,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   celery_indexing:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=indexing ./start_celery_worker.sh -P prefork -Q indexing -c 2"]
     restart: "always"
     healthcheck:
@@ -119,10 +91,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   celery_concurrent:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=concurrent ./start_celery_worker.sh -P prefork -Q concurrent -c 2"]
     restart: "always"
     healthcheck:
@@ -133,10 +103,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   celery_bulk_import_0_1:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=bulk_import_0_1 ./start_celery_worker.sh -Q bulk_import_0,bulk_import_1 -c 1"]
     restart: "always"
     healthcheck:
@@ -147,10 +115,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   celery_bulk_import_2_3:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=bulk_import_2_3 ./start_celery_worker.sh -Q bulk_import_2,bulk_import_3 -c 1"]
     restart: "always"
     healthcheck:
@@ -161,10 +127,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   celery_bulk_import_root:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=bulk_import_root ./start_celery_worker.sh -Q bulk_import_root -c 1"]
     restart: "always"
     healthcheck:
@@ -175,10 +139,8 @@ services:
       - DEBUG=${DEBUG-FALSE}
       - ERRBIT_URL
       - ERRBIT_KEY
-    networks:
-      - web
   flower:
-    image: oclapi:latest #openconceptlab/oclapi2:production
+    image: openconceptlab/oclapi2:production
     command: ["bash", "-c", "./start_flower.sh"]
     ports:
       - 5555:5555
@@ -192,8 +154,6 @@ services:
     restart: "always"
     healthcheck:
       test: "curl --silent --fail -u $${FLOWER_USER:-root}:$${FLOWER_PASSWORD:-Root123} http://localhost:5555/metrics || exit 1"
-    networks:
-      - web
   es:
     image: elasticsearch:7.17.1
     environment:
@@ -209,8 +169,7 @@ services:
     restart: "always"
     healthcheck:
       test: "curl --silent --fail http://localhost:9200/_cluster/health || exit 1"
-    networks:
-      - web
+      
   web:
     image: openconceptlab/oclweb2:production
     ports:
@@ -225,25 +184,6 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
       - HOTJAR_ID
-    labels:
-      - traefik.enable=true
-      - traefik.http.middlewares.redirect-web-secure.redirectscheme.scheme=https
-      - traefik.http.middlewares.https-redirect.headers.customrequestheaders.X-Forwarded-Proto=https
-      - traefik.http.routers.ocl-web.middlewares=redirect-web-secure
-      - traefik.http.routers.ocl-web.rule=Host(`terminology.doh.gov.ph`)
-      - traefik.http.routers.ocl-web.entrypoints=web
-      - traefik.http.routers.ocl-web-secure.rule=Host(`terminology.doh.gov.ph`)
-      - traefik.http.routers.ocl-web-secure.entrypoints=web-secure
-      - traefik.http.routers.ocl-web-secure.tls=true
-      - traefik.http.routers.ocl-web-secure.tls.certresolver=default
-      - traefik.http.routers.ocl-web-secure.service=ocl-service
-      - traefik.http.services.ocl-service.loadbalancer.server.port=4000
-    networks:
-      - web
 volumes:
   postgres-data:
   es-data:
-
-networks:
-  web:
-    external: true
