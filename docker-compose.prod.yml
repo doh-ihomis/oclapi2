@@ -12,15 +12,17 @@ services:
     volumes:
       - postgres-data:/usr/share/postgres/data
     networks:
-      - web
+      - monitor-net
+
   redis:
     image: redis:6.0.6-alpine
     restart: "always"
     healthcheck:
       test: "redis-cli ping"
     networks:
-      - web
-  api:
+      - monitor-net
+
+  ocl-api:
     image: oclapi:latest #openconceptlab/oclapi2:production
     restart: "always"
     ports:
@@ -43,7 +45,7 @@ services:
       - API_SUPERUSER_PASSWORD=${API_SUPERUSER_PASSWORD-Root123}
       - API_SUPERUSER_TOKEN=${API_SUPERUSER_TOKEN-891b4b17feab99f3ff7e5b5d04ccc5da7aa96da6}
       - API_BASE_URL=${API_BASE_URL-http://localhost:8000}
-      - API_INTERNAL_BASE_URL=${API_INTERNAL_BASE_URL-http://api:8000}
+      - API_INTERNAL_BASE_URL=${API_INTERNAL_BASE_URL-http://ocl-api:8000}
       - EMAIL_NOREPLY_PASSWORD
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -60,6 +62,8 @@ services:
       test: "curl --silent --fail http://localhost:8000/version/ || exit 1"
     labels:
       - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.backend=ocl-api
       - traefik.http.middlewares.redirect-web-secure.redirectscheme.scheme=https
       - traefik.http.middlewares.https-redirect.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.routers.ocl-api-web.middlewares=redirect-web-secure
@@ -72,7 +76,8 @@ services:
       - traefik.http.routers.ocl-api-web-secure.service=ocl-api-service
       - traefik.http.services.ocl-api-service.loadbalancer.server.port=8000
     networks:
-      - web
+      - monitor-net
+
   celery:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=default ./start_celery_worker.sh -P prefork -Q default -c 2"]
@@ -86,7 +91,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   celery_beat:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "./start_celery_beat.sh"]
@@ -106,7 +112,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   celery_indexing:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=indexing ./start_celery_worker.sh -P prefork -Q indexing -c 2"]
@@ -120,7 +127,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   celery_concurrent:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=concurrent ./start_celery_worker.sh -P prefork -Q concurrent -c 2"]
@@ -134,7 +142,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   celery_bulk_import_0_1:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=bulk_import_0_1 ./start_celery_worker.sh -Q bulk_import_0,bulk_import_1 -c 1"]
@@ -148,7 +157,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   celery_bulk_import_2_3:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=bulk_import_2_3 ./start_celery_worker.sh -Q bulk_import_2,bulk_import_3 -c 1"]
@@ -162,7 +172,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   celery_bulk_import_root:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "CELERY_WORKER_NAME=bulk_import_root ./start_celery_worker.sh -Q bulk_import_root -c 1"]
@@ -176,7 +187,8 @@ services:
       - ERRBIT_URL
       - ERRBIT_KEY
     networks:
-      - web
+      - monitor-net
+
   flower:
     image: oclapi:latest #openconceptlab/oclapi2:production
     command: ["bash", "-c", "./start_flower.sh"]
@@ -193,7 +205,8 @@ services:
     healthcheck:
       test: "curl --silent --fail -u $${FLOWER_USER:-root}:$${FLOWER_PASSWORD:-Root123} http://localhost:5555/metrics || exit 1"
     networks:
-      - web
+      - monitor-net
+
   es:
     image: elasticsearch:7.17.1
     environment:
@@ -210,8 +223,9 @@ services:
     healthcheck:
       test: "curl --silent --fail http://localhost:9200/_cluster/health || exit 1"
     networks:
-      - web
-  web:
+      - monitor-net
+
+  ocl-web:
     image: openconceptlab/oclweb2:production
     ports:
       - "4000:4000"
@@ -227,6 +241,8 @@ services:
       - HOTJAR_ID
     labels:
       - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.backend=ocl-web
       - traefik.http.middlewares.redirect-web-secure.redirectscheme.scheme=https
       - traefik.http.middlewares.https-redirect.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.routers.ocl-web.middlewares=redirect-web-secure
@@ -239,11 +255,13 @@ services:
       - traefik.http.routers.ocl-web-secure.service=ocl-service
       - traefik.http.services.ocl-service.loadbalancer.server.port=4000
     networks:
-      - web
+      - monitor-net
 volumes:
   postgres-data:
   es-data:
 
 networks:
-  web:
+  monitor-net:
+    external: true
+  traefik:
     external: true
